@@ -269,6 +269,31 @@ the seed: `src/app/page.tsx` → `index`, `src/app/ru/about/page.tsx` →
 router could re-enter an edited page from an interactive one and clobber it —
 do not use this pattern with a client-side router.
 
+### 9. New-component styles: own globals.css, not clone Tailwind
+
+`cloned-site.css` is the original site's compiled Tailwind and only contains
+utilities present in the original HTML. Tailwind classes on new components
+(StudioFab, editor chrome) are never compiled in. `.fixed` may exist while
+`.bottom-6` / `.right-6` / `z-[9999]` do not → a `position: fixed` element
+with no offsets keeps its in-flow position (spec) and lands thousands of px
+below the viewport. Put new-component layout styles in the project's own
+`globals.css`:
+
+```css
+/* src/app/globals.css */
+.studio-fab {
+  position: fixed; bottom: 24px; right: 24px; z-index: 9999;
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 12px 20px; border-radius: 9999px; color: #fff;
+  background: #1B4D3E; text-decoration: none; cursor: pointer;
+}
+```
+
+Verify visibility with the rect: `getBoundingClientRect()` must sit inside
+the viewport (e.g. y ≈ 836 for a 900px-tall viewport), not ~6000px below.
+(The original bug was exactly this: button present in the DOM,
+`computed position: fixed`, `z-index: auto`, rect.y = 6176.)
+
 ## Drift-check method (proves fidelity before shipping)
 
 After wiring, assert the merged (UCD-over-module) output equals the module-only

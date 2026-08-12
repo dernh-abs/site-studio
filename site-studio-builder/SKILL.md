@@ -156,6 +156,19 @@ baseline shape and the page renderer differ.
    menus…), pages with **edits** return `null` (static DOM + overrides win).
    Safe because the clone's navigation is plain `<a>` full-page loads (no SPA
    router), so each page independently decides in both directions.
+7. **New component styles go in YOUR globals.css, never in the clone's
+   Tailwind classes.** `cloned-site.css` is the original site's *compiled*
+   Tailwind — it only contains utilities that appeared in the original HTML.
+   A new client component (StudioFab, editor chrome…) that uses Tailwind
+   utilities is NOT scanned at build time, so its classes are missing:
+   `.fixed { position: fixed }` may exist but `.bottom-6` / `.right-6` /
+   `z-[9999]` will not. A `position: fixed` element with no top/right/bottom/
+   left then keeps its in-flow position per spec — e.g. it ends up ~6000px
+   below the viewport, invisible. Symptom: element is in the DOM and
+   `computed position: fixed`, but `getBoundingClientRect().y` is far outside
+   the viewport. Fix: define a plain class (`.studio-fab`) in your project's
+   own `globals.css` (always loaded) with the layout/positioning, or use
+   inline styles.
 
 ## Critical pitfalls
 
@@ -194,6 +207,14 @@ baseline shape and the page renderer differ.
   with no edits keep full interactivity. Only valid when navigation is plain
   `<a>` full-page loads; an SPA router would re-enter an edited page from an
   interactive one and clobber it.
+- **New components: styles in your globals.css, not clone Tailwind classes.**
+  `cloned-site.css` only contains utilities from the ORIGINAL site's HTML.
+  Tailwind classes on your new components (`.fixed bottom-6 right-6
+  z-[9999]`) won't be compiled in — `position: fixed` with no offsets falls
+  back to the in-flow position (button lands thousands of px below the
+  viewport, invisible). Put new-component layout styles in your own
+  `globals.css` (or inline styles). Verify with
+  `getBoundingClientRect()` — the rect must sit inside the viewport.
 
 ## Resources
 
