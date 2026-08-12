@@ -63,8 +63,19 @@ verified code patterns):
 
 **Step 0 — Prereqs.** Next.js (App Router) + React. **Node ≥ 24** (the managed
 `node` v22 is too old for Next 16 — use `C:\Program Files\nodejs` or `nvm`).
-Decide the "faithful baseline": the original copy/dictionaries the public site
-renders.
+Decide the "faithful baseline" — the source the public site renders. Two proven
+shapes (verified end-to-end):
+
+- **Component baseline** (component-rebuilt clone): copy lives in
+  `translations.ts`/`ru.ts` + `seed-data.ts`; components read via `t()` /
+  `useSectionData`. Steps 1–7 below assume this shape.
+- **DOM-injected baseline** (DOM-injection clone, e.g. produced by a
+  full-site-clone pipeline where rendered HTML is injected verbatim): the
+  injected HTML itself is the baseline. Extract every leaf text node into a
+  flat dotted key (`{slug}.{tag}.{n}`) → `translations.ts`; each page applies
+  edits via `applyOverrides(html, dict)`. No `t()` refactor needed; output is
+  byte-identical to the original until an edit lands. See
+  "DOM-injected clones" below.
 
 **Step 1 — Extract a faithful baseline into modules.** Put site copy in
 `src/lib/i18n/translations.ts` (en+zh) and `ru.ts` (ru), plus `seed-data.ts`
@@ -104,6 +115,39 @@ faithful copy; a patch-API edit persists and **survives a dev restart**; drift
 check (merged UCD vs module) shows 0 differences. See `references/architecture.md`
 for the drift-check method.
 
+## DOM-injected clones (text-key baseline)
+
+Proven on an 80-page DOM-injection clone (40 EN + 40 `/ru` mirror pages, 8627
+extracted text keys). The six-piece architecture is unchanged; only the
+baseline shape and the page renderer differ.
+
+1. **Seed the text-key baseline.** A generator script walks every page's
+   injected HTML, extracts each **leaf text node** into a flat dotted key
+   `{slug}.{tag}.{n}` (nested structures like `<h1><span>…</span></h1>` become
+   per-`span` keys), and emits `translations.ts` (flat dict) + `.content/`
+   with the same first-run-only guard. The flat dotted keys are also the patch
+   paths — `/translations/en/{key}` — so the Studio editor and the API need no
+   path translation.
+2. **Page renderer.** Each page component becomes `async`, loads the merged
+   dict server-side (`loadFullDocument` + `compatTranslate`), and runs
+   `applyOverrides(html, dict)` to swap edited values back into the injected
+   HTML. With no edits the output is byte-identical to the original.
+3. **`export const dynamic = "force-dynamic"` on every editable page** — a
+   statically prerendered page never re-renders after an edit, so edits would
+   only appear after a rebuild. Dynamic rendering makes each request re-read
+   `.content/` and apply the latest edits.
+4. **mtime-validated content cache.** In Next 16 the Route Handler and the
+   page renderer are **separate module instances**; an in-memory cache that the
+   patch API invalidates is invisible to the page side (API shows the edit,
+   page still renders the old value). Validate cache entries by file **mtime**
+   on every read instead of invalidating in memory — both instances agree on
+   disk state. See `references/architecture.md` for the pattern.
+5. **Studio UI shape.** A DOM-injected clone has no component tree, so a Puck
+   canvas has nothing to render. Use the **translation-editor form**: `/studio`
+   lists pages, `/studio/{slug}` shows the page's editable text keys in a table
+   with save → `POST /api/studio/patch`. The natural-language command bar can
+   be added the same way (its patches target the same text keys).
+
 ## Critical pitfalls
 
 - **Node version.** The Bash default `node` may be v22 (too old for Next 16).
@@ -121,6 +165,22 @@ for the drift-check method.
 - **Hydration.** SSR and first client render must be identical — pass the
   seed-data constant as the `useSectionData` fallback (the UCD is `null` on the
   server).
+- **Next 16 module-instance isolation — "edit saved but page unchanged".**
+  Route Handlers and page rendering compile into separate module instances, so
+  a pure in-memory cache invalidated by the patch API is invisible to the page
+  renderer. Symptom: `/api/studio/document` shows the new value, the public
+  page still renders the old one. Fix: validate the content cache by file
+  **mtime** on every read (both instances agree on disk state), not by
+  in-memory invalidation.
+- **Editable pages must be dynamic.** Without
+  `export const dynamic = "force-dynamic"` the page is statically prerendered
+  at build time and never re-renders after an edit (edit only appears after a
+  rebuild). Add it to every page the Studio edits.
+- **Interactivity tier conflicts with editing.** If the clone also injects the
+  original site's JS bundle (interactive tier), the bundle's `createRoot`
+  re-renders `#root` and **clobbers edited HTML** on load. Editing requires the
+  static (no-JS) tier — remove the bundle `<script>` from the layout. The two
+  are mutually exclusive for the same page.
 
 ## Resources
 

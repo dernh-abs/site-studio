@@ -41,6 +41,7 @@ the concrete templates when scaffolding a new studio.
 | `src/lib/executor/content-runtime.ts` | Module singleton holding `doc`; `translate`, `getSectionData`, `commitDocument`, `subscribeRuntime`, `getSnapshot`. |
 | `src/lib/executor/use-content-runtime.ts` | React bridge (`useSyncExternalStore`) + `useSectionData(page, id, fallback)`. |
 | `src/lib/content/compat-adapter.ts` | `compatTranslate` with **merge** policy; `fallbackTranslations()`. |
+| `src/lib/i18n/apply-overrides.ts` | **DOM-injected baseline only**: swap edited values (flat dotted keys) back into injected HTML. |
 | `src/components/ContentBootstrap.tsx` | Client loader: fetch `/api/studio/document`, `commitDocument`, skip `/studio`. |
 | `src/app/layout.tsx` | Mounts `<LanguageProvider><Children/><StudioFab/><ContentBootstrap/></LanguageProvider>`. |
 | `src/app/api/studio/document/route.ts` | Assembles `.content/*` → UCD. |
@@ -172,6 +173,59 @@ export function useSectionData<T>(page: string, sectionId: string, fallback: T):
 }
 ```
 
+### 6. mtime-validated content cache (Next 16 cross-instance)
+
+Next 16 compiles Route Handlers and page rendering into **separate module
+instances**: a cache entry invalidated in-memory by the patch API is invisible
+to the page side. Symptom: `/api/studio/document` returns the new value while
+the public page still renders the old one. Fix — validate by file mtime on
+every read, so both instances agree on disk state:
+
+```ts
+// src/lib/content/content-loader.ts
+const cache = new Map<string, { mtimeMs: number; data: unknown }>();
+
+async function readJsonFile<T>(rel: string): Promise<T | null> {
+  const abs = path.join(process.cwd(), CONTENT_DIR, rel);
+  try {
+    const st = await fs.stat(abs);
+    const hit = cache.get(rel);
+    if (hit && hit.mtimeMs === st.mtimeMs) return hit.data as T;
+    const parsed = JSON.parse(await fs.readFile(abs, "utf-8")) as T;
+    cache.set(rel, { mtimeMs: st.mtimeMs, data: parsed });
+    return parsed;
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === "ENOENT") return null;
+    throw err;
+  }
+}
+```
+
+### 7. applyOverrides — DOM-injected baseline renderer
+
+The seed step rewrites each extracted leaf text node in the page's HTML into a
+placeholder `{tk:{slug}.{tag}.{n}}` (page.tsx is generated once). The page
+renderer substitutes placeholders from the merged dict:
+
+```ts
+// src/lib/i18n/apply-overrides.ts
+// dict = merged translations for one language (flat dotted keys).
+export function applyOverrides(html: string, dict: Record<string, string>): string {
+  return html.replace(/\{tk:([^}]+)\}/g, (m, key) => dict[key] ?? m);
+  // dict[key] is the ORIGINAL text until the Studio edits it (compatTranslate
+  // merges UCD over the base module) -> byte-identical until an edit lands.
+}
+```
+
+Text-key extraction (seed side): walk the injected HTML with a tree parser,
+collect every leaf text node (skip `script`/`style`/`noscript`), assign
+`{slug}.{tag}.{n}` in document order, and write both `translations.ts` (flat
+base dict) and `.content/translations.json` (first-run-only). Nested markup
+(`<h1><span>A</span> <span>B</span></h1>`) yields per-`span` keys — the editor
+shows leaf-level strings, never partial mixed nodes. These flat dotted keys
+are also the patch paths (`/translations/en/{key}`), so no path translation is
+needed in the Studio UI or the patch API.
+
 ## Drift-check method (proves fidelity before shipping)
 
 After wiring, assert the merged (UCD-over-module) output equals the module-only
@@ -197,3 +251,8 @@ adapter).
 - [ ] **Restart `npm run dev`** → the edit survives (seed skipped regeneration).
 - [ ] Revert the test edit to the faithful baseline.
 - [ ] Drift check: 0 differences across all sampled `t()` keys.
+- [ ] DOM-injected baseline: the edited value appears on the **public page**
+      without a rebuild (needs `force-dynamic` + mtime-validated cache; verifies
+      the Next 16 cross-instance fix).
+- [ ] DOM-injected baseline: no-edit output is byte-identical to the original
+      page (placeholder substitution is lossless).
