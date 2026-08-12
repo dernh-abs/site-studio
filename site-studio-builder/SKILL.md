@@ -215,6 +215,17 @@ baseline shape and the page renderer differ.
   viewport, invisible). Put new-component layout styles in your own
   `globals.css` (or inline styles). Verify with
   `getBoundingClientRect()` — the rect must sit inside the viewport.
+- **Developer gate must cover ALL three entry points.** Hiding the StudioFab
+  button is not enough — direct URL access (`/studio`, `/studio/[slug]`) and
+  the **write API** (`POST /api/studio/patch`) are public back doors: anyone
+  who knows the URL can edit content even when the button is hidden. Extract
+  one `isDeveloperRequest()` (loopback-host hard gate + dev/flag soft gate)
+  and apply it in all three places: layout (button visibility), the `/studio`
+  routes (`notFound()` → 404 when denied), and every `/api/studio/*` route
+  handler (404 JSON). The gates must be bound together — either the request
+  can use all three, or none. Verify the matrix: developer (loopback +
+  dev/flag) sees button + 200 routes + working API; public host (even with a
+  flag-enabled build) sees hidden button + 404 everywhere.
 
 ## Resources
 

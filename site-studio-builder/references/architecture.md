@@ -44,6 +44,7 @@ the concrete templates when scaffolding a new studio.
 | `src/lib/i18n/apply-overrides.ts` | **DOM-injected baseline only**: swap edited values (flat dotted keys) back into injected HTML. |
 | `src/lib/i18n/has-page-edits.ts` | **DOM-injected baseline only**: does the UCD hold any override for a slug vs the baseline module? |
 | `src/components/InteractiveTier.tsx` | **DOM-injected baseline only**: server component — injects the original JS bundle on pages with NO edits, returns null on edited pages (per-page interactivity). |
+| `src/lib/studio/developer-gate.ts` | `isDeveloperRequest()`: loopback-host hard gate + dev/flag soft gate. The ONE gate shared by the button, the /studio routes, and every /api/studio/* route. |
 | `src/components/ContentBootstrap.tsx` | Client loader: fetch `/api/studio/document`, `commitDocument`, skip `/studio`. |
 | `src/app/layout.tsx` | Mounts `<LanguageProvider><Children/><StudioFab/><ContentBootstrap/></LanguageProvider>`. |
 | `src/app/api/studio/document/route.ts` | Assembles `.content/*` → UCD. |
@@ -293,6 +294,43 @@ Verify visibility with the rect: `getBoundingClientRect()` must sit inside
 the viewport (e.g. y ≈ 836 for a 900px-tall viewport), not ~6000px below.
 (The original bug was exactly this: button present in the DOM,
 `computed position: fixed`, `z-index: auto`, rect.y = 6176.)
+
+### 10. Developer gate — bound across button, routes, and API
+
+Hiding the button is NOT a gate: `/studio` URLs and `POST /api/studio/patch`
+are public back doors. One shared gate, applied in all three places:
+
+```ts
+// src/lib/studio/developer-gate.ts
+import { headers } from "next/headers";
+
+export async function isDeveloperRequest(): Promise<boolean> {
+  const h = await headers();
+  const host = h.get("host") ?? "";
+  // Hard gate: loopback only — a public visitor can never pass, even on a
+  // flag-enabled deployed build.
+  if (!/^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/.test(host)) return false;
+  // Soft gate: dev mode, or a production build compiled with the flag.
+  if (process.env.NODE_ENV !== "production") return true;
+  return process.env.NEXT_PUBLIC_SHOW_STUDIO_FAB === "true";
+}
+```
+
+Apply it in all three places (bound: all-or-nothing per request):
+
+1. **Layout** — `<StudioFab show={await isDeveloperRequest()} />` (button
+   visibility).
+2. **Studio routes** — `if (!(await isDeveloperRequest())) notFound();` in
+   `/studio/page.tsx` and `/studio/[page]/page.tsx` → public visitors get a
+   plain 404, no hint the route exists.
+3. **Every `/api/studio/*` route handler** — at the top of `GET`/`POST`:
+   `if (!(await isDeveloperRequest())) return NextResponse.json({ success:
+   false, error: "Not found" }, { status: 404 });` — including the **write**
+   endpoint (`patch`), otherwise anyone can edit content via curl.
+
+Verified matrix (flag-enabled production build): developer via loopback →
+button visible, `/studio` 200, patch API passes the gate; public host →
+button hidden, `/studio` 404, document + patch APIs 404.
 
 ## Drift-check method (proves fidelity before shipping)
 
