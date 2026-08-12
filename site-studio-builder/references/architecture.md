@@ -42,6 +42,8 @@ the concrete templates when scaffolding a new studio.
 | `src/lib/executor/use-content-runtime.ts` | React bridge (`useSyncExternalStore`) + `useSectionData(page, id, fallback)`. |
 | `src/lib/content/compat-adapter.ts` | `compatTranslate` with **merge** policy; `fallbackTranslations()`. |
 | `src/lib/i18n/apply-overrides.ts` | **DOM-injected baseline only**: swap edited values (flat dotted keys) back into injected HTML. |
+| `src/lib/i18n/has-page-edits.ts` | **DOM-injected baseline only**: does the UCD hold any override for a slug vs the baseline module? |
+| `src/components/InteractiveTier.tsx` | **DOM-injected baseline only**: server component — injects the original JS bundle on pages with NO edits, returns null on edited pages (per-page interactivity). |
 | `src/components/ContentBootstrap.tsx` | Client loader: fetch `/api/studio/document`, `commitDocument`, skip `/studio`. |
 | `src/app/layout.tsx` | Mounts `<LanguageProvider><Children/><StudioFab/><ContentBootstrap/></LanguageProvider>`. |
 | `src/app/api/studio/document/route.ts` | Assembles `.content/*` → UCD. |
@@ -226,6 +228,47 @@ shows leaf-level strings, never partial mixed nodes. These flat dotted keys
 are also the patch paths (`/translations/en/{key}`), so no path translation is
 needed in the Studio UI or the patch API.
 
+### 8. InteractiveTier — per-page interactivity vs editing
+
+The bundle's `createRoot()` wipes edited HTML, but only where it runs. Decide
+**per page** instead of removing the bundle globally (which would kill
+interactivity on every untouched page):
+
+```ts
+// src/lib/i18n/has-page-edits.ts
+export function hasPageEdits(
+  ucdEn: Record<string, unknown> | undefined,
+  slug: string
+): boolean {
+  if (!ucdEn) return false;
+  const baseEn = (TRANSLATIONS.en?.translation ?? {}) as Record<string, unknown>;
+  const prefix = `${slug}.`;
+  for (const key of Object.keys(baseEn)) {
+    if (key.startsWith(prefix) && ucdEn[key] !== baseEn[key]) return true;
+  }
+  for (const key of Object.keys(ucdEn)) {
+    if (key.startsWith(prefix) && baseEn[key] === undefined) return true;
+  }
+  return false;
+}
+```
+
+```tsx
+// src/components/InteractiveTier.tsx  (server component; page.tsx renders it)
+export async function InteractiveTier({ slug }: { slug: string }) {
+  const doc = await loadFullDocument();
+  const ucdEn = doc?.translations?.en as Record<string, unknown> | undefined;
+  if (hasPageEdits(ucdEn, slug)) return null;       // edited page: static + overrides win
+  return <script defer src="/bundle.e1ad0c10972d.js" />;  // untouched: full interactivity
+}
+```
+
+Every page adds `<InteractiveTier slug="{slug}" />` (slug derivation mirrors
+the seed: `src/app/page.tsx` → `index`, `src/app/ru/about/page.tsx` →
+`ru__about`). Safe under plain-`<a>` navigation (full-page loads); an SPA
+router could re-enter an edited page from an interactive one and clobber it —
+do not use this pattern with a client-side router.
+
 ## Drift-check method (proves fidelity before shipping)
 
 After wiring, assert the merged (UCD-over-module) output equals the module-only
@@ -256,3 +299,7 @@ adapter).
       the Next 16 cross-instance fix).
 - [ ] DOM-injected baseline: no-edit output is byte-identical to the original
       page (placeholder substitution is lossless).
+- [ ] DOM-injected baseline + InteractiveTier: an **unedited** page mounts the
+      bundle and its interactivity works (e.g. FAQ accordion toggles); after
+      editing that page's slug, the bundle disappears and the edit renders,
+      while other unedited pages keep their bundle.

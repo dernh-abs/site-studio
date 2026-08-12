@@ -147,6 +147,15 @@ baseline shape and the page renderer differ.
    lists pages, `/studio/{slug}` shows the page's editable text keys in a table
    with save → `POST /api/studio/patch`. The natural-language command bar can
    be added the same way (its patches target the same text keys).
+6. **Per-page interactivity (InteractiveTier).** Don't remove the original
+   site's JS bundle globally when adding editing — that kills interactivity on
+   every untouched page too. Instead decide **per page**: a server component
+   compares the UCD against the baseline module for the current slug
+   (`has-page-edits`); pages with **no edits** render
+   `<script defer src="/<bundle>.js" />` (full interactivity: FAQ accordions,
+   menus…), pages with **edits** return `null` (static DOM + overrides win).
+   Safe because the clone's navigation is plain `<a>` full-page loads (no SPA
+   router), so each page independently decides in both directions.
 
 ## Critical pitfalls
 
@@ -176,11 +185,15 @@ baseline shape and the page renderer differ.
   `export const dynamic = "force-dynamic"` the page is statically prerendered
   at build time and never re-renders after an edit (edit only appears after a
   rebuild). Add it to every page the Studio edits.
-- **Interactivity tier conflicts with editing.** If the clone also injects the
-  original site's JS bundle (interactive tier), the bundle's `createRoot`
-  re-renders `#root` and **clobbers edited HTML** on load. Editing requires the
-  static (no-JS) tier — remove the bundle `<script>` from the layout. The two
-  are mutually exclusive for the same page.
+- **Interactivity vs editing: per-page, not global.** The original site's JS
+  bundle calls `createRoot()` and re-renders `#root` from its embedded data,
+  **clobbering edited HTML** — but only on pages where it actually runs. Do NOT
+  remove the bundle from the global layout (that kills interactivity on every
+  untouched page too). Inject it **per page** via a server component that
+  skips pages with Studio edits (`InteractiveTier` + `has-page-edits`); pages
+  with no edits keep full interactivity. Only valid when navigation is plain
+  `<a>` full-page loads; an SPA router would re-enter an edited page from an
+  interactive one and clobber it.
 
 ## Resources
 
