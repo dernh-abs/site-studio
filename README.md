@@ -26,22 +26,23 @@
 
 ---
 
-## 安装
+## 安装（多工具通用）
 
-**方式一：直接放入 skills 目录**（推荐）
+本仓库的 `site-studio-builder/` 是**规范来源**（WorkBuddy 与 Claude Code 共用同一
+`SKILL.md` 格式）。其余工具通过 `integrations/` 下的适配文件接入，内容完全一致，
+均指向 `site-studio-builder/references/` 获取完整代码模式。
 
-```bash
-# 把仓库里的 site-studio-builder/ 目录整体复制到 WorkBuddy 的 user-level skills 目录
-cp -r site-studio-builder ~/.workbuddy/skills/site-studio-builder
-```
+| 工具 | 安装方式 |
+| --- | --- |
+| **WorkBuddy** | `cp -r site-studio-builder ~/.workbuddy/skills/site-studio-builder`，重启 WorkBuddy |
+| **Claude Code** | `cp -r site-studio-builder ~/.claude/skills/site-studio-builder`（同格式，直接可用） |
+| **Codex** | 把 `integrations/codex/AGENTS.md` 的内容并入你的 `AGENTS.md`（项目根或 `~/.codex/`） |
+| **Trae** | 把 `integrations/trae/site-studio-builder.mdc` 放到项目的 `.trae/rules/` 下（或作为全局规则） |
+| **ChatGPT** | 把 `integrations/chatgpt/INSTRUCTIONS.md` 粘贴进某 Project 的「Project instructions」，或 Custom GPT 的 System instructions |
 
-重启 WorkBuddy 后即可在对话中触发（见下方「使用」）。
-
-**方式二：从打包产物安装**
-
-仓库根目录另提供 `site-studio-builder.zip`（由 `skill-creator` 的 `package_skill.py` 校验并打包）。解压后把 `site-studio-builder/` 放到 `~/.workbuddy/skills/` 下即可。
-
-> 说明：skill 目录名必须保持为 `site-studio-builder`，WorkBuddy 按目录名加载。
+> 规范来源 `site-studio-builder/` 目录名必须保持为 `site-studio-builder`。
+> 想直接装 WorkBuddy 版，仓库根另提供 `site-studio-builder.zip`（由 `skill-creator` 的
+> `package_skill.py` 校验并打包），解压后放到 `~/.workbuddy/skills/` 即可。
 
 ---
 
@@ -63,13 +64,17 @@ cp -r site-studio-builder ~/.workbuddy/skills/site-studio-builder
 
 ```
 site-studio/                      # 本仓库根
-├── README.md                     # 本文件
-├── site-studio-builder/          # skill 本体（复制到 ~/.workbuddy/skills/）
+├── README.md                     # 本文件（含多工具安装说明）
+├── site-studio-builder/          # 规范来源：WorkBuddy + Claude Code 共用（复制到对应 skills 目录）
 │   ├── SKILL.md                  # 用途 / 触发条件 / 分阶段 workflow / 硬约束 / 关键坑
 │   └── references/
 │       ├── architecture.md       # 文件地图 + 数据流向 + 已验证代码模式
 │       └── nl-command-bar.md     # 自然语言指令子系统（API 契约 / rule-matcher / 端到端透传 / 已知 UI bug 修复）
-└── site-studio-builder.zip       # 打包分发版（可选）
+├── integrations/                 # 其他工具的适配文件（内容一致，wrapper 不同）
+│   ├── codex/AGENTS.md           # Codex：并入 AGENTS.md
+│   ├── trae/site-studio-builder.mdc  # Trae：放入 .trae/rules/
+│   └── chatgpt/INSTRUCTIONS.md   # ChatGPT：粘贴进 Project instructions / Custom GPT
+└── site-studio-builder.zip       # 打包分发版（WorkBuddy 用，可选）
 ```
 
 ---
