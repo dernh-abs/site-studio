@@ -41,8 +41,7 @@
 | **ChatGPT** | 把 `integrations/chatgpt/INSTRUCTIONS.md` 粘贴进某 Project 的「Project instructions」，或 Custom GPT 的 System instructions |
 
 > 规范来源 `site-studio-builder/` 目录名必须保持为 `site-studio-builder`。
-> 想直接装 WorkBuddy 版，仓库根另提供 `site-studio-builder.zip`（由 `skill-creator` 的
-> `package_skill.py` 校验并打包），解压后放到 `~/.workbuddy/skills/` 即可。
+> 安装即把该目录复制到 `~/.workbuddy/skills/`（WorkBuddy）或 `~/.claude/skills/`（Claude Code），无需打包。
 
 ---
 
@@ -79,7 +78,6 @@ site-studio/                      # 本仓库根
 │   ├── codex/AGENTS.md           # Codex：并入 AGENTS.md
 │   ├── trae/site-studio-builder.mdc  # Trae：放入 .trae/rules/
 │   └── chatgpt/INSTRUCTIONS.md   # ChatGPT：粘贴进 Project instructions / Custom GPT
-└── site-studio-builder.zip       # 打包分发版（WorkBuddy 用，可选）
 ```
 
 ---
