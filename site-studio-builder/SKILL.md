@@ -58,6 +58,12 @@ verified code patterns):
    so edits flow to the public site.
 6. **Studio UI** — `/studio` (client, Puck) + `NLCommandBar` / `IntentPreview`
    + `StudioFab` (env-gated floating button).
+7. **AI smart editing** (optional) — an LLM (local Ollama or any
+   OpenAI-compatible endpoint) drives the command bar. The editor clicks a
+   component first, and the AI only edits that component's fields. Deterministic
+   rules handle just undo/redo/help; everything else goes to the LLM, with
+   clarification for ambiguous targets, translation to mirror keys, and a
+   targeted refusal for out-of-scope style edits. See `references/ai-editing.md`.
 
 ## Workflow
 
@@ -232,6 +238,46 @@ baseline shape and the page renderer differ.
   can use all three, or none. Verify the matrix: developer (loopback +
   dev/flag) sees button + 200 routes + working API; public host (even with a
   flag-enabled build) sees hidden button + 404 everywhere.
+- **Puck render loop → "This page couldn't load".** Three things compound:
+  `usePuck()` with **no selector** (subscribes to the whole store),
+  **inline `viewports`/`overrides` literals** (new identity each render →
+  Puck remounts the outline/header subtree), and a `setSelectedBlock` that
+  passes a **fresh object** every call. Together they remount → re-run the
+  bridge effect → re-set state → remount until React throws. Fix all three:
+  `createUsePuck()` narrow selectors, `useMemo(..., [])` the `viewports`/
+  `overrides`, and serialize-compare before `setSelectedBlock`. See
+  `puck-canvas.md` §3d.
+- **NL apply must reuse the dry-run ops, never re-parse.** The dry-run sends
+  `selectedBlock`, so the LLM resolves the right key; re-`POST /api/agent/command`
+  without it falls back to the rule matcher and lands on a DIFFERENT key. The
+  preview edits one field, the save edits another, and undo reverts the wrong
+  field ("the command edit can't be undone"). Persist the exact dry-run ops via
+  `/api/studio/patch`.
+- **Programmatic `setData` triggers onChange → double save → undo no-op.** The
+  apply's optimistic `pushPuckData` surfaces as a Puck `onChange` → `debouncedSave`
+  → a second, idempotent version; the next Undo reverts that no-op version so
+  the text never changes back. Guard `handleChange` with an `applyingRef` that
+  returns early while a command apply is in flight.
+- **Translate writes mirror keys, not lang dictionaries.** The clone's zh/ru
+  dicts are empty; Russian lives in the **en** dict under `ru__` prefixes
+  (`ru__hospitals.h1.1`). Translating to ru must write `ru__<key>` into the en
+  dict, and `readTranslationValue` must fall back to the baseline module
+  (unedited keys aren't in the UCD). See `ai-editing.md`.
+- **Style edits (color/font/weight…) need a targeted refusal.** Without an
+  explicit prompt rule the LLM classifies "改字体颜色" as unclear intent and
+  returns the generic capability list — which never answers "can I change the
+  color?", so it feels like "no reaction". Add a SYSTEM_PROMPT rule →
+  `query(question:"style")` and a concrete "样式修改暂不支持" answer in the
+  command route.
+- **dry-run preview must be a diff.** `validate()` returning `produce(currentDoc,
+  applyOps)` (the whole ~800KB UCD) made every dryRun response huge and was
+  never consumed by the UI. Return `PreviewChange[] { path, before, after }`.
+- **Block splitting must re-inject fixed-header clearance.** The passthrough in
+  `gen-blocks.py` drops a wrapper `<main class="flex-grow pt-[72px]">` whose
+  padding keeps a fixed 72px header off the first main block. The public page is
+  fine (wrapper intact); the split block isn't, so the header covers the top of
+  the first main block on the canvas. Carry an `inherited_pt` offset through
+  the recursion and `inject_padding_top` it back onto the emitted block.
 
 ## Resources
 
@@ -245,8 +291,14 @@ baseline shape and the page renderer differ.
 - `references/nl-command-bar.md` — the natural-language editing subsystem (API
   contract, rule-matcher, dom-ops-mapper, end-to-end carry-through, and the
   known UI-bug fixes).
+- `references/ai-editing.md` — the **AI smart-editing layer** on top of the
+  command bar: selected-component scope, LLM-driven understanding (rules only
+  for undo/redo/help), clarification, translation to mirror keys, style-op
+  refusal, Ollama/OpenAI-compatible model wiring, and the apply/undo correctness
+  pitfalls.
 - `references/feature-matrix.md` — Studio-module ↔ skill-template mapping table
   plus the default configuration/parameter values to match the proven Studio.
 - `scripts/gen-blocks.py` — the block-splitting generator (copy into the host
   project, adjust `build_on_full()` for your shell, run to emit
-  `public/studio-blocks/*.json`).
+  `public/studio-blocks/*.json`). Includes the `inherited_pt` fixed-header
+  clearance fix.

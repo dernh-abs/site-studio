@@ -71,9 +71,10 @@ site-studio/                      # 本仓库根
 │   │   └── gen-blocks.py         # DOM 注入克隆的 block 拆分脚本（→ public/studio-blocks/*.json）
 │   └── references/
 │       ├── architecture.md       # 文件地图 + 数据流向 + 已验证代码模式
-│       ├── puck-canvas.md        # DOM 注入克隆的完整 Puck 画布模板（block 拆分 / PageBlock / 图片编辑 / 大纲）
+│       ├── puck-canvas.md        # DOM 注入克隆的完整 Puck 画布模板（block 拆分 / PageBlock / 图片编辑 / 大纲 / 渲染循环坑）
 │       ├── feature-matrix.md     # Studio 模块 ↔ skill 模板功能对应表 + 配置默认值
-│       └── nl-command-bar.md     # 自然语言指令子系统（API 契约 / rule-matcher / 端到端透传 / 已知 UI bug 修复）
+│       ├── nl-command-bar.md     # 自然语言指令子系统（API 契约 / rule-matcher / 端到端透传 / 已知 UI bug 修复）
+│       └── ai-editing.md         # AI 智能编辑（选中组件作用域 / LLM 主导 / 澄清 / 翻译镜像键 / 样式拒绝 / 撤销正确性）
 ├── integrations/                 # 其他工具的适配文件（内容一致，wrapper 不同）
 │   ├── codex/AGENTS.md           # Codex：并入 AGENTS.md
 │   ├── trae/site-studio-builder.mdc  # Trae：放入 .trae/rules/

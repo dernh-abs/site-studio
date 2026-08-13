@@ -148,3 +148,16 @@ already-mapped flat-key ops.
 - `POST` with garbage → `success === false`, `error` non-empty, `templates.length === 13`.
 - In the UI: "帮助" shows the catalog + copyable examples; a bad command shows
   the error text **and** the same example list.
+
+## AI layer — see `references/ai-editing.md`
+
+This file documents the deterministic NL subsystem. The **AI smart-editing
+layer** on top of it (selected-component scope, LLM-driven understanding,
+clarification, translation to mirror keys, style-op refusal, model wiring, and
+the apply/undo correctness pitfalls) lives in `references/ai-editing.md`.
+
+Note the rule-matcher's role **shrinks** once the LLM is wired in: it no longer
+parses content edits with regex — it only short-circuits the zero-ambiguity
+action words (`undo` / `redo` / `help` / `?`). Every free-form content edit goes
+to the LLM, so "把标题改得更吸引人一点" or "这段太啰嗦了，精简一下" work
+without any regex.

@@ -40,6 +40,16 @@ feature-for-feature.
 | `/api/studio/document` (re-read disk) | **puck-canvas.md §8** | Always `loadFullDocument()` (cross-instance). |
 | `src/app/studio/components/Toolbar.tsx` | **puck-canvas.md §9** | Minimal toolbar (undo + save), hide Puck header. |
 | `src/app/studio/components/ImageUploader.tsx` | puck-canvas.md §5 | Upload + library modal + compression. |
+| `src/lib/agent/llm-client.ts` (DOM SYSTEM_PROMPT) | **ai-editing.md** | LLM intent parsing (selected-block scope, style refusal). |
+| `src/lib/agent/types.ts` (`SelectedBlockContext`, `ClarificationError`) | **ai-editing.md** | Selected-scope + clarification types. |
+| `src/lib/agent/intent-parser.ts` (action-word short-circuit) | **ai-editing.md** | Rules only for undo/redo/help; else LLM. |
+| `src/lib/agent/rule-matcher.ts` (`matchActionRule`) | **ai-editing.md** | Action-word short-circuit (no content regex). |
+| `src/lib/agent/translate-service.ts` + `planTranslate` mirror keys | **ai-editing.md** | Translate → `ru__` key in en dict + baseline fallback. |
+| `src/app/api/agent/command` `clarifyKey` + `query:"style"` | **ai-editing.md** | Clarify resubmit + style-op refusal. |
+| `handleAgentApply` (reuse dry-run ops) + `applyingRef` | **ai-editing.md** + puck-canvas.md §7 | Apply === preview; no double-save. |
+| `createUsePuck` narrow selectors + memoized `viewports`/`overrides` | puck-canvas.md §3d | Fix render-loop crash. |
+| `gen-blocks.py` `inherited_pt` passthrough | **scripts/gen-blocks.py** | Re-inject fixed-header clearance into split blocks. |
+| `validator.ts` `PreviewChange` diff | **ai-editing.md** | Lightweight dry-run preview (not whole UCD). |
 
 ## Default configuration & parameters
 
@@ -70,3 +80,11 @@ Align these defaults so behavior is identical to the proven Studio:
 | Seed policy | first-run-only (skip if `translations.json` exists) | `seed-ucd.ts` |
 | Editable pages | `export const dynamic = "force-dynamic"` | every page component |
 | gitignore additions | `.content/`, `versions/`, `public/studio-blocks/`, `public/uploads/`, `public/*.chunk.js` | host project |
+| LLM enable | `ENABLE_LLM=true` | `.env.local` |
+| LLM provider | `LLM_PROVIDER=openai` (Ollama speaks OpenAI-compatible) | `.env.local` |
+| LLM base URL | `LLM_BASE_URL=http://localhost:11434/v1` (or DeepSeek/通义/Kimi) | `.env.local` |
+| LLM model | `LLM_MODEL=qwen2.5:7b` | `.env.local` |
+| LLM API key | `LLM_API_KEY=ollama` (placeholder; Ollama ignores it) | `.env.local` |
+| Selected-scope types | `SelectedBlockContext { id, fields: {key,value,kind}[] }` | `types.ts` |
+| Translate mirror prefix | `ru` → `ru__` (write into en dict) | `planTranslate` |
+| Dry-run preview | `PreviewChange[] { path, before, after }` | `validator.ts` |

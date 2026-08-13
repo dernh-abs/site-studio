@@ -95,4 +95,6 @@ subsystem (API contract, rule-matcher, end-to-end carry-through, known UI-bug
 fixes), see the repository's `site-studio-builder/references/architecture.md`,
 `site-studio-builder/references/puck-canvas.md` (the block-based Puck canvas for
 DOM-injected clones, incl. image editing), and
-`site-studio-builder/references/nl-command-bar.md`.
+`site-studio-builder/references/nl-command-bar.md`,
+`site-studio-builder/references/ai-editing.md` (AI smart editing: selected-component
+scope, LLM-driven understanding, clarification, translation, apply/undo correctness).

@@ -228,6 +228,46 @@ viewport so the whole page (header → main → footer) renders at the right wid
 With `height: "auto"` Puck auto-zooms to fit the canvas; a long page stays
 scrollable inside the frame.
 
+### 3d. Full-store `usePuck()` + inline overrides + fresh-object setState → render loop (crash)
+
+Symptom: clicking different components intermittently crashes the page with
+Next's "This page couldn't load". Three things combine into an infinite
+re-render loop:
+
+1. **`usePuck()` with no selector** subscribes to the *entire* store — every
+   store tick re-renders the bridge/outline (and spams a console warning).
+   Use `createUsePuck()` with narrow selectors instead:
+```ts
+const usePuckStore = createUsePuck();
+const dispatch = usePuckStore((s) => s.dispatch);
+const itemSelector = usePuckStore((s) => s.appState?.ui?.itemSelector);
+const content = usePuckStore((s) => s.appState?.data?.content);
+```
+2. **Inline `viewports={[...]}` / `overrides={{...}}` literals** get a new
+   identity on every parent render; Puck's internal
+   `useMemo(..., [outlineOverride])` keys on that identity and **remounts the
+   outline/header subtree**. Memoize them (deps `[]`):
+```ts
+const viewports = useMemo(() => [{ width: 1280, height: "auto", icon: "monitor", label: "Desktop" }], []);
+const overrides = useMemo(() => ({ header: () => <PuckDataBridge/>, outline: () => <StudioOutline/>, ... }), []);
+```
+3. **`setSelectedBlock` with a fresh object every call** (e.g.
+   `computeSelectedBlock(...)` returns a new object) fires a parent re-render
+   on every store tick even when the content is identical. Guard with a
+   serialized-compare ref:
+```ts
+const lastKeyRef = useRef("");
+// in the bridge's effect:
+const key = JSON.stringify(sel ?? null);
+if (key === lastKeyRef.current) return;
+lastKeyRef.current = key;
+sync.current.setSelectedBlock?.(sel);
+```
+
+Any one of the three alone is a perf bug; together they remount → re-run the
+bridge effect → re-set state → remount again until React throws "Maximum update
+depth exceeded". Fix all three.
+
 ## 4. Custom outline — `overrides.outline`
 
 Replace Puck's default component list with a page-block outline whose rows are
@@ -405,11 +445,15 @@ DOM-injected clone, add two pieces:
    on exactly the key shown in the right panel. Only fall back to semantic
    matching (longest text key in the block, header nav-key by tail word) when
    the key is not in the baseline.
-2. **Optimistic preview** — on `handleAgentApply`, apply the returned
+2. **Optimistic preview + apply** — on `handleAgentApply`, apply the returned
    `/translations/*` ops to a UCD copy, `ucdToPuck` it, and `pushPuckData` the
    result so the canvas updates instantly (same as editing text in the right
-   panel), then persist via `/api/agent/command` (dryRun:false) and
-   `refreshDocument()` as the authoritative sync.
+   panel). Then **persist the exact dry-run ops via `/api/studio/patch`** (never
+   re-`POST /api/agent/command`, which would re-parse without `selectedBlock`
+   and land on a different key), and `refreshDocument()` as the authoritative
+   sync. Guard `handleChange` with an `applyingRef` so the programmatic
+   `setData` doesn't trigger `debouncedSave` → a duplicate version that makes
+   the next Undo a no-op. See `references/ai-editing.md` "Pitfalls".
 
 ## 8. `document` route must re-read disk
 
