@@ -14,10 +14,11 @@ appear on the public pages after reload. The pattern was proven on a
 `medkungfu.com` clone where public pages stayed byte-for-byte faithful to the
 original while a studio editing mode was layered on top.
 
-**Portability.** This `SKILL.md` format is also directly usable by **Claude Code**
-(identical frontmatter/layout — drop the folder into `~/.claude/skills/`). For
-**Codex**, **Trae**, and **ChatGPT**, use the ready-made adapter files in the
-repo's `integrations/` folder (same workflow, tool-appropriate wrapper).
+**Portability.** This `SKILL.md` uses the shared agents-skill format that
+**Claude Code** and **WorkBuddy** load natively (drop the folder into
+`~/.claude/skills/` or `~/.workbuddy/skills/`). **Codex**, **Trae**, and
+**ChatGPT** use the ready-made adapter files in the repo's `integrations/`
+folder — same workflow, tool-appropriate wrapper.
 
 ## When to use
 

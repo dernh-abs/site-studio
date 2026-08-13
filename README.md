@@ -1,8 +1,10 @@
 # site-studio-builder
 
-一个 **WorkBuddy skill**：给任意网站（尤其是「站点克隆」）叠加一个**加性、非破坏式**的浏览器内可视化编辑层（`/studio`）。编辑人员可以在 `/studio` 里修改文案、图片、区块数据，保存后刷新公开页面即可看到变化——而**公开页面始终与原站逐字一致**，不会因为加了编辑模式而发生任何布局或文案偏移。
+一套**可移植的 AI Agent 指令集（skill）**：给任意网站（尤其是「站点克隆」）叠加一个**加性、非破坏式**的浏览器内可视化编辑层（`/studio`）。编辑人员可以在 `/studio` 里修改文案、图片、区块数据，保存后刷新公开页面即可看到变化——而**公开页面始终与原站逐字一致**，不会因为加了编辑模式而发生任何布局或文案偏移。
 
-该模式已在 `medkungfu.com` 克隆项目（`medkungfu-clone`）中完整落地验证：公开页 100% 保真，同时具备可编辑能力。
+这套指令已在 `medkungfu.com` 克隆项目（`medkungfu-clone`）中完整落地验证：公开页 100% 保真，同时具备可编辑能力。
+
+**多工具通用。** 同一份工作流不绑定任何单一 AI 编码工具——Claude Code 与 WorkBuddy 直接加载规范的 `SKILL.md`；Codex、ChatGPT、Trae 通过仓库 `integrations/` 下的适配文件接入，**核心约束、分阶段流程与参考资料完全一致**，只是外层包装不同。
 
 ---
 
@@ -28,26 +30,23 @@
 
 ## 安装（多工具通用）
 
-本仓库的 `site-studio-builder/` 是**规范来源**（WorkBuddy 与 Claude Code 共用同一
-`SKILL.md` 格式）。其余工具通过 `integrations/` 下的适配文件接入，内容完全一致，
-均指向 `site-studio-builder/references/` 获取完整代码模式。
+本仓库提供**一份规范来源 `SKILL.md`**（Claude Code / WorkBuddy 原生 skill 格式：YAML frontmatter + markdown），以及 `integrations/` 下各工具的适配文件。所有入口指向同一套工作流与参考资料（`references/`）。
 
 | 工具 | 安装方式 |
 | --- | --- |
+| **Claude Code** | `cp -r site-studio-builder ~/.claude/skills/site-studio-builder`，重启 Claude Code |
 | **WorkBuddy** | `cp -r site-studio-builder ~/.workbuddy/skills/site-studio-builder`，重启 WorkBuddy |
-| **Claude Code** | `cp -r site-studio-builder ~/.claude/skills/site-studio-builder`（同格式，直接可用） |
 | **Codex** | 把 `integrations/codex/AGENTS.md` 的内容并入你的 `AGENTS.md`（项目根或 `~/.codex/`） |
-| **Trae** | 把 `integrations/trae/site-studio-builder.mdc` 放到项目的 `.trae/rules/` 下（或作为全局规则） |
 | **ChatGPT** | 把 `integrations/chatgpt/INSTRUCTIONS.md` 粘贴进某 Project 的「Project instructions」，或 Custom GPT 的 System instructions |
+| **Trae** | 把 `integrations/trae/site-studio-builder.mdc` 放到项目的 `.trae/rules/` 下（或作为全局规则） |
 
-> 规范来源 `site-studio-builder/` 目录名必须保持为 `site-studio-builder`。
-> 安装即把该目录复制到 `~/.workbuddy/skills/`（WorkBuddy）或 `~/.claude/skills/`（Claude Code），无需打包。
+> 规范来源 `site-studio-builder/` 目录名必须保持为 `site-studio-builder`。Claude Code / WorkBuddy 直接复制该目录到对应 skills 目录即可，无需打包；其余工具读取 `integrations/` 下的适配文件，内容一致。
 
 ---
 
 ## 使用
 
-在 WorkBuddy 对话中描述需求即可触发，例如：
+在任意接入工具的对话中描述需求即可触发，例如：
 
 - 「给我的站点加一个 `/studio` 可视化编辑器」
 - 「让这个网站可编辑」
@@ -64,7 +63,7 @@
 ```
 site-studio/                      # 本仓库根
 ├── README.md                     # 本文件（含多工具安装说明）
-├── site-studio-builder/          # 规范来源：WorkBuddy + Claude Code 共用（复制到对应 skills 目录）
+├── site-studio-builder/          # 规范来源：Claude Code / WorkBuddy 原生 skill 格式（复制到对应 skills 目录）
 │   ├── SKILL.md                  # 用途 / 触发条件 / 分阶段 workflow / 硬约束 / 关键坑
 │   ├── scripts/
 │   │   └── gen-blocks.py         # DOM 注入克隆的 block 拆分脚本（→ public/studio-blocks/*.json）
