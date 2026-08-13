@@ -86,5 +86,7 @@ copy; a patch-API edit persists and **survives a dev restart**; drift check
 For the verified, copy-pasteable code patterns (runtime singleton, merge adapter,
 bootstrap, seed guard, drift-check method) and the full natural-language command
 subsystem (API contract, rule-matcher, end-to-end carry-through, known UI-bug
-fixes), see the repository's `site-studio-builder/references/architecture.md` and
+fixes), see the repository's `site-studio-builder/references/architecture.md`,
+`site-studio-builder/references/puck-canvas.md` (the block-based Puck canvas for
+DOM-injected clones, incl. image editing), and
 `site-studio-builder/references/nl-command-bar.md`.

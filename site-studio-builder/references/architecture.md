@@ -55,6 +55,27 @@ the concrete templates when scaffolding a new studio.
 | `src/lib/agent/rule-matcher.ts` | Maps NL text → rule (e.g. `query.help` → capability). |
 | `src/components/StudioFab.tsx` | Env-gated floating "Edit in Studio" button. |
 
+### DOM-injected clone (Puck canvas) files
+
+| File | Responsibility |
+|------|----------------|
+| `scripts/gen-blocks.py` | Split each page's injected HTML into blocks → `public/studio-blocks/{slug}.json` (see `references/puck-canvas.md`). |
+| `public/studio-blocks/*.json` | One file per page: `{ slug, blocks: [{id,title,html,keys,images}] }`. Gitignored (derived). |
+| `src/lib/puck/puck-adapter.ts` | `ucdToPuck`/`puckToUcd`, `sanitizeKey`, `baselineValue`, `baselineImage`, `resolveBlockTitle`. |
+| `src/lib/puck/puck-config.tsx` | Generic `PageBlock` (dangerouslySetInnerHTML) + `buildPageConfig(blocks)`. |
+| `src/lib/puck/custom-field-types.tsx` | `ImageField` / `ListField` custom field types. |
+| `src/lib/studio/page-registry.ts` | **Server-only** `listRegisteredPages()` — scans blocks files for the authoritative page list. |
+| `src/lib/studio/asset-store.ts` | `saveAsset`/`listAssets` for uploaded images (index.json). |
+| `src/app/api/studio/pages/route.ts` | `GET /api/studio/pages` — page list for the `/studio` landing page. |
+| `src/app/api/studio/upload/route.ts` | `POST /api/studio/upload` — multipart image upload (5MB, MIME whitelist). |
+| `src/app/api/studio/uploads/[path]/route.ts` | Serves runtime-uploaded images (no gate; static-asset semantics). |
+| `src/app/api/studio/assets/route.ts` | `GET /api/studio/assets` — uploaded asset library. |
+| `src/app/studio/StudioIndex.tsx` | `/studio` navigation page (lists real pages from `/api/studio/pages`). |
+| `src/app/studio/StudioPageEditor.tsx` | "文本" tab fallback — the flat key table (kept alongside the canvas). |
+| `src/app/studio/components/ImageUploader.tsx` | Upload + library modal + client-side compression. |
+| `src/app/studio/components/Toolbar.tsx` | Minimal top bar (undo + save + NL command bar children). |
+| `src/lib/agent/dom-ops-mapper.ts` | Maps plan-generator ops → flat keys (1:1 first, semantic fallback). |
+
 ## Verified code patterns
 
 ### 1. ContentRuntime — module singleton

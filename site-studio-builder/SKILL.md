@@ -1,6 +1,6 @@
 ---
 name: site-studio-builder
-description: "This skill should be used when adding an in-browser visual editor (Studio) on top of an existing website — especially a clone of another site — so non-technical edits (text, images, section data) flow back into the public pages without altering the original layout or copy. Trigger phrases include: add a studio or visual editor to my site, make the site editable, build a /studio like X, clone this site and add an editing mode, attach a Puck editor or page builder to my Next.js app, let me edit the homepage copy or images from a dashboard. Covers the content layer (UCD plus .content/), a translation-merge adapter that guarantees zero-drift fidelity to the original site, a client bootstrap that reconnects Studio edits to the public pages, a Puck-based /studio editor, an optional natural-language command bar, and an env-gated floating entry button."
+description: "This skill should be used when adding an in-browser visual editor (Studio) on top of an existing website — especially a clone of another site — so non-technical edits (text, images, section data) flow back into the public pages without altering the original layout or copy. Trigger phrases include: add a studio or visual editor to my site, make the site editable, build a /studio like X, clone this site and add an editing mode, attach a Puck editor or page builder to my Next.js app, let me edit the homepage copy or images from a dashboard. Covers the content layer (UCD plus .content/), a translation-merge adapter that guarantees zero-drift fidelity to the original site, a client bootstrap that reconnects Studio edits to the public pages, a Puck-based /studio editor (including a block-based canvas for DOM-injected clones, image upload + asset library, and a custom block outline), an optional natural-language command bar, and an env-gated floating entry button."
 ---
 
 # Site Studio Builder
@@ -142,11 +142,17 @@ baseline shape and the page renderer differ.
    page still renders the old value). Validate cache entries by file **mtime**
    on every read instead of invalidating in memory — both instances agree on
    disk state. See `references/architecture.md` for the pattern.
-5. **Studio UI shape.** A DOM-injected clone has no component tree, so a Puck
-   canvas has nothing to render. Use the **translation-editor form**: `/studio`
-   lists pages, `/studio/{slug}` shows the page's editable text keys in a table
-   with save → `POST /api/studio/patch`. The natural-language command bar can
-   be added the same way (its patches target the same text keys).
+5. **Studio UI shape — full Puck canvas, not a translation table.** A
+   DOM-injected clone has no React component tree, but you can recover one from
+   the injected HTML: run `scripts/gen-blocks.py` to split each page into
+   blocks (`public/studio-blocks/{slug}.json`), then register ONE generic
+   `PageBlock` component per block (renders the block's HTML via
+   `dangerouslySetInnerHTML`, substituting edited values back in). This gives
+   the **full Puck canvas** — left outline, center canvas, right property panel
+   scoped to the selected block's keys — identical to the component-rebuilt
+   Studio. See `references/puck-canvas.md` for the complete template (block
+   splitting, `puck-adapter`, `PageBlock`, `PuckDataBridge`, custom outline,
+   desktop viewport, image editing, page registry).
 6. **Per-page interactivity (InteractiveTier).** Don't remove the original
    site's JS bundle globally when adding editing — that kills interactivity on
    every untouched page too. Instead decide **per page**: a server component
@@ -230,7 +236,17 @@ baseline shape and the page renderer differ.
 ## Resources
 
 - `references/architecture.md` — file-by-file map, data-flow, and the verified
-  code patterns (runtime singleton, merge adapter, bootstrap, seed guard).
+  code patterns (runtime singleton, merge adapter, bootstrap, seed guard,
+  developer gate).
+- `references/puck-canvas.md` — the **DOM-injected Puck canvas** template:
+  block splitting, `puck-adapter`/`puck-config`, `PuckDataBridge`, custom
+  outline, desktop viewport, image editing (upload + library + runtime file
+  serving), page registry, and the NL→canvas optimistic preview.
 - `references/nl-command-bar.md` — the natural-language editing subsystem (API
-  contract, rule-matcher, end-to-end carry-through, and the two known UI-bug
-  fixes).
+  contract, rule-matcher, dom-ops-mapper, end-to-end carry-through, and the
+  known UI-bug fixes).
+- `references/feature-matrix.md` — Studio-module ↔ skill-template mapping table
+  plus the default configuration/parameter values to match the proven Studio.
+- `scripts/gen-blocks.py` — the block-splitting generator (copy into the host
+  project, adjust `build_on_full()` for your shell, run to emit
+  `public/studio-blocks/*.json`).

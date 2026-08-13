@@ -118,6 +118,30 @@ click-to-copy `templates` list on **both** the help (success) and failure paths:
 )}
 ```
 
+### DOM-injected clone: dom-ops-mapper + 1:1 path resolution
+
+On a DOM-injected clone, the plan generator still emits component-rebuild
+paths (`/pages/index/sections/hero/title`, `/translations/en/nav.about`), but
+content lives in flat dotted keys (`translations.en["index.span.2"]`). Two
+pieces reconcile them — the second is the one that caused a real bug:
+
+1. **`dom-ops-mapper.ts`** — rewrites ops to flat keys **before** validation.
+   Resolution order (most-specific first):
+   - `base[key] !== undefined` → keep the key literal (1:1; the key shown in
+     the right panel). This is the critical case: `hospitals.a.4` must land on
+     `hospitals.a.4`, never a semantic fallback.
+   - `nav.*` → the header block key whose baseline value contains the tail word.
+   - `<section>.<field>` → the block's longest text key (heading/body approx).
+   - Last resort → header nav fallback.
+2. **`path-resolver.ts` `isRealFlatKey(t)`** — returns true when `t` is a real
+   flat baseline key. If true, resolve 1:1 with **dots kept literal**. Never
+   convert dots to `/` (JSON-pointer path) — that was the bug: `hospitals.a.4`
+   was rewritten to `hospitals/a/4` and fell through to the nav fallback,
+   so a command targeting `hospitals.a.4` edited a different key.
+
+Both run in `/api/agent/command` **before** `validate()` so the validator sees
+already-mapped flat-key ops.
+
 ## Verification
 
 - `POST /api/agent/command` with `"帮助"` → `answer` non-empty, `templates.length === 13`.
